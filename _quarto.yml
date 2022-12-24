@@ -1,0 +1,11 @@
+project:
+  title: "Atteinte pulmonaire chronique & drépanocytaire"
+date: today
+date-format: "DD/MM/YYYY"
+fig-cap-location: bottom
+tbl-cap-location: top
+editor: source
+cite-method: biblatex
+license: "CC BY-SA"
+
+

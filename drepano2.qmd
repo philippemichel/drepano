@@ -1,0 +1,222 @@
+---
+title: "Atteinte pulmonaire chronique & drépanocytaire"
+author: "Philippe MICHEL"
+bibliography: stat.bib
+subtitle: "Résulats"
+format: 
+  html:
+    lang: fr-FR
+    theme: spacelab
+    smooth-scroll: true
+    number-sections: true
+    toc: true
+    toc-location: left
+---
+
+**Travail de Juliette BUTEAU & du Dr Dr Jean-François BOITIAUX - Pneumologie**
+
+```{r setup, include= FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, cache = FALSE,
+ fig.width = 7,
+ fig.asp = 0.8,
+ out.width = "100%"
+)
+```
+
+```{r}
+#| label: info
+
+rm(list=ls())
+library("baseph")
+library("tidyverse")
+library("kableExtra")
+library(gtsummary)
+library(labelled)
+library(DataExplorer)
+
+# sessionInfo()
+```
+
+```{r}
+#| label: import
+rm(list = ls())
+bnom <- read.csv("datas/bnom.csv")
+bnom <- bnom$nom
+tt <- debutph("datas/drepa2.csv", bnom)
+#
+tt$imc <- bmiph(tt$imc, "fr")
+## Recodage de tt$cvo.an en tt$cvo.an_rec
+tt$cvo.an<- cut(tt$cvo.an,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(0, 1, 2, 3, 4,5, 10,50), 
+  labels = c("0","1","2","3","4","5-10",">10")
+)
+  
+```
+
+L'échantillon comporte `r nrow(tt)` cas pour `r ncol(tt)-2` variables. Ill ya beaucoup de donénes manquantes en particulier sur les résultats radiologiques.
+
+```{r}
+#| label: missing
+#| fig-cap: "Données manquantes"
+#| fig-height: 20
+
+plot_missing(tt)
+```
+
+
+## Description de la population
+
+### Démographie
+
+```{r}
+#| label: "tab1clinique"
+
+tabl <- c(2,3,4,7:22)
+tt |> 
+  select(tabl) |> 
+  tbl_summary(by = groupe, missing = "no") |> 
+add_p() |> 
+  bold_labels() |> 
+  modify_caption("Description démographique")
+  
+```
+
+```{r}
+#| label: figdemo1
+#| fig-cap: "gravité selon le sexe"
+
+tt |> 
+  bardeuxph(sexe,groupe, titre = "gravité selon le sexe", stitre = "p = 0,017")
+```
+
+```{r}
+#| label: figdemo2
+#| fig-cap: "gravité & Hb de base"
+
+tt |> 
+  ggplot() +
+  aes(x = groupe, y = hb.base, fill = groupe) +
+  geom_violin() +
+  geom_boxplot(fill = "grey90", width = 0.2) +labs(
+    title = "gravité & Hb de base",
+         subtitle = "p = 0.023",
+         x = "xtitre",
+         y = "Hb de base (g/dL)") +
+    theme_light() +
+    colorspace::scale_fill_discrete_qualitative(palette = "Dynamic") +
+    theme(
+      plot.title = element_text(size = 16, face = "bold"),
+      plot.subtitle = element_text(size = 12),
+      axis.title.x = element_blank(),
+      axis.title.y = element_text(
+        size = 12,
+        angle = 90,
+        vjust = .5
+      ),
+      axis.text.x = element_text(
+        size = 12
+      ),
+      axis.text.y = element_text(size = 12),
+      legend.position = "none"
+    )
+```
+
+```{r}
+#| label: figdemo3
+#| fig-cap: "gravité & oxygène nocturne"
+
+tt |> 
+  bardeuxph(sexe,groupe, titre = "gravité & oxygène nocturne", stitre = "p = 0,018")
+```
+
+```{r}
+#| label: figdemo4
+#| fig-cap: "gravité & néphropathie"
+
+tt |> 
+  bardeuxph(sexe,groupe, titre = "gravité & néphropathie", stitre = "p = 0,004")
+```
+
+### Manifestations cliniques
+
+```{r}
+#| label: "tab2clinique"
+
+tabl <- c(2,3,4,7:22)
+tt |> 
+  select(tabl) |> 
+  tbl_summary(by = groupe, missing = "no") |> 
+add_p() |> 
+  bold_labels() |> 
+  modify_caption("Manifestations cliniques")
+  
+```
+
+### Traitements
+
+```{r}
+#| label: "tab3clinique"
+
+tabl <- c(2,23:27)
+tt |> 
+  select(tabl) |> 
+  tbl_summary(by = groupe, missing = "no") |> 
+add_p() |> 
+  bold_labels() |> 
+  modify_caption("Traitements")
+  
+```
+
+### Antécédents
+
+```{r}
+#| label: "tab4clinique"
+
+tabl <- c(2,28:43)
+tt |> 
+  select(tabl) |> 
+  tbl_summary(by = groupe, missing = "no") |> 
+add_p() |> 
+  bold_labels() |> 
+  modify_caption("Antécédents")
+  
+```
+
+## EFR
+
+
+```{r}
+#| label: "tabefr1"
+
+# tabl <- c(2,44,46,48,49,51,56,59,63,60,61,64:67)
+# tt |> 
+#   select(tabl) |> 
+#   tbl_summary(by = groupe, missing = "no") |> 
+# add_p() |> 
+#   bold_labels() |> 
+#   modify_caption("EFR")
+```
+
+
+## atteintes radiologiques
+
+```{r}
+#| label: "taberad1"
+
+tabl <- c(2,68:128)
+tt |> 
+  select(tabl) |> 
+  tbl_summary(by = groupe, missing = "no") |> 
+add_p() |> 
+  bold_labels() |> 
+  modify_caption("EFR")
+```
+
+
+
+
+
+
