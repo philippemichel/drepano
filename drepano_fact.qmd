@@ -1,0 +1,153 @@
+---
+title: "Atteinte pulmonaire chronique *&* drépanocytaire"
+subtitle: "Analyse factorielle"
+author: "Philippe MICHEL"
+thanks: "Juliette BUTEAU *&* Dr Jean-François BOITIAUX - Pneumologie"
+format: pdf
+pdf-engine: lualatex
+keep-tex: true
+documentclass: scrartcl
+mainfont: Adobe Garamond Pro
+mainfontoptions:
+- Ligatures = Common
+- Ligatures = Rare
+sansfont: Trajan Pro
+monofont: Source Sans Pro
+mathfont: Source Sans Pro
+monofontoptions: Numbers = Monospaced
+mathfontoptions: Numbers = Monospaced
+colorlinks: true
+fontsize: 10pt
+papersize: a4
+lang: fr
+fig-align: center
+toc: true
+lof: true
+lot: true
+cite-method: natbib
+bibliography: stat.bib
+license: CC BY-SA
+always_allow_html: true
+---
+
+```{r setup, include= FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, cache = FALSE,
+# knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+#
+ #fig.width = 7,
+ fig.asp = 0.8,
+ out.width = "100%"
+)
+```
+
+
+```{r}
+#| label: info
+
+# rm(list=ls())
+library(baseph)
+library(tidyverse)
+library(kableExtra)
+library(gtsummary)
+library(labelled)
+library(missMDA)
+library(FactoMineR)
+library(factoextra)
+
+
+# sessionInfo()
+```
+
+
+
+```{r}
+#| label: import
+bnom <- read.csv("datas/bnom.csv")
+bnom <- bnom$nom
+ttd <- debutph("datas/drepa2.csv", bnom)
+#
+ttd$imc <- bmiph(ttd$imc, "fr")
+## Recodage de tt$cvo.an en tt$cvo.an_rec
+ttd$cvo.an<- cut(ttd$cvo.an,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(0, 1, 2, 3, 4,5, 10,50), 
+  labels = c("0","1","2","3","4","5-10",">10")
+)
+#
+befr <- read.csv("datas/befr.csv")
+befr <- befr$nom
+efr <- debutph("datas/efr.csv", befr)
+#
+
+tt <- left_join(ttd,efr,"id")
+```
+
+## Clinique
+
+```{r}
+#| label: clinintro
+
+zz <- tt |> 
+  select(2:4,7:22,29:34,36:45) |> 
+ # drop_na(c(diabete, osteonecrose))
+  drop_na()
+## Recodage de zz$age en zz$age_rec
+zz$age<- cut(zz$age,
+  include.lowest = TRUE,
+  right = FALSE,## Recodage de zz$sta en zz$sta_rec
+  dig.lab = 4,
+  breaks = c(0, 20, 40, 60, 100)
+)
+levels(zz$age) <- paste0("age", levels(zz$age))
+## Recodage de zz$hb.base en zz$hb.base_rec
+zz$hb.base<- cut(zz$hb.base,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(0, 7, 8, 10, 20)
+)
+levels(zz$hb.base) <- paste0("hb", levels(zz$hb.base))
+## Recodage de zz$sta en zz$sta_rec
+zz$sta<- cut(zz$sta,
+                  include.lowest = TRUE,
+                  right = FALSE,
+                  dig.lab = 4,
+                  breaks = c(0, 1, 2, 4, 25)
+)
+levels(zz$sta) <- paste0("sta", levels(zz$sta))
+levels(zz$cvo.an) <- paste0("cvo.an", levels(zz$cvo.an))
+```
+
+
+On analyse tout d'abord la partie clinique, y compris les atcd *&* les manifestations cliniques. En raison des nombreuses données manquantes l'analyse ne portera que sur `r nrow(zz)` dossiers. L'analyse est réalisée sans utiliser la variable `cas/témoin` dans les calculs. 
+
+
+```{r}
+#| label: clinfact1
+
+mtt <- MCA(zz, quali.sup = 1,graph = FALSE)
+```
+
+```{r}
+#| label: clinfactg1
+#| fig-cap: Données cliniques (graphique des individus) 
+
+fviz_mca_ind(mtt, habillage = 1,addEllipses = TRUE, geom = "point", title = "Individus")
+```
+
+De fait, quand on cherche à classer au mieux les patients dans des groupes distincts (sans prendre en compte dans le calcul la variable `cas/témoin`) on voit que cette dernière, reportée sur la figure 2, n'est pas clivante. On peut juste noté que les `cas` sont plus sur la droite, du coté de marqueurs de gravité (nombre élevé de SRA ou de CVO, HTP). 
+
+```{r}
+#| label: g2
+#| fig-cap: "Données cliniques (graphique des variables)" 
+
+fviz_mca_var(mtt, repel = TRUE, geom = "text", title = "variables")
+```
+
+## Technique
+
+L'analyse factorielle a été réalisée en analyse des correspondances multiples (MCA). Les cas présentant trop de données manquantes (aucune manifestation clinique  ou aucun antécédent) ont été supprimés. une imputation des données manquantes a été réalisée ensuite sur les cas restants. 
+
+L'analyse statistique a été réalisée avec le logiciel **R** [@rstat] *&* diverses librairies en particulier celles du `tidyverse` [@tidy], `FactoMineR` [@facto] *&* `baseph` [@baseph].

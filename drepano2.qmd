@@ -1,69 +1,118 @@
 ---
 title: "Atteinte pulmonaire chronique & drépanocytaire"
 author: "Philippe MICHEL"
-bibliography: stat.bib
-subtitle: "Résulats"
+thanks: "Juliette BUTEAU & Dr Dr Jean-François BOITIAUX - Pneumologie"
+subtitle: "Résulats - V2"
+lang: FR
+date: today
+date-format: "DD MMMM YYYY"
 format: 
-  html:
-    lang: fr-FR
-    theme: spacelab
-    smooth-scroll: true
-    number-sections: true
-    toc: true
-    toc-location: left
+  pdf:
+    code-link: true
+    pdf-engine: lualatex
+keep-tex: true
+number-sections: true
+toc: true
+lof: true
+lot: true
+mainfont: Faune
+mainfontoptions:
+  - Numbers=OldStyle
+  - Ligatures=TeX
+sansfont: Myriad Pro
+sansfontoptions:
+  - Ligatures=TeX
+mathfontoptions: 
+  - Numbers=Proportional
+fig-cap-location: bottom
+tbl-cap-location: top
+class: scrartcl
+classoption: [french]
+papersize: a4paper
+editor: source
+cite-method: natbib
+bibliography: stat.bib
+license: "CC BY-SA"
 ---
-
-**Travail de Juliette BUTEAU & du Dr Dr Jean-François BOITIAUX - Pneumologie**
 
 ```{r setup, include= FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, cache = FALSE,
+# knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+#
  fig.width = 7,
  fig.asp = 0.8,
  out.width = "100%"
 )
+expt <- TRUE
 ```
+
 
 ```{r}
 #| label: info
 
-rm(list=ls())
-library("baseph")
-library("tidyverse")
-library("kableExtra")
+# rm(list=ls())
+library(baseph)
+library(tidyverse)
+library(kableExtra)
 library(gtsummary)
 library(labelled)
 library(DataExplorer)
+library(WriteXLS)
 
 # sessionInfo()
 ```
 
+
 ```{r}
 #| label: import
-rm(list = ls())
+
+rm(tt)
 bnom <- read.csv("datas/bnom.csv")
 bnom <- bnom$nom
-tt <- debutph("datas/drepa2.csv", bnom)
+ttd <- debutph("datas/drepa2.csv", bnom)
 #
-tt$imc <- bmiph(tt$imc, "fr")
+ttd$imc <- bmiph(ttd$imc, "fr")
+var_label(ttd$imc) <- "IMC"
 ## Recodage de tt$cvo.an en tt$cvo.an_rec
-tt$cvo.an<- cut(tt$cvo.an,
+ttd$cvo.an <- cut(ttd$cvo.an,
   include.lowest = TRUE,
   right = FALSE,
   dig.lab = 4,
   breaks = c(0, 1, 2, 3, 4,5, 10,50), 
   labels = c("0","1","2","3","4","5-10",">10")
 )
-  
+var_label(ttd$cvo.an) <- "Nb de CVO hospitalisée par an en moyenne"
+#
+## Recodage de tt$sta en tt$sta_rec
+ttd$sta<- cut(ttd$sta,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(0, 1, 2, 3,4,6, 11, 25),
+  labels = c("0","1","2","3","4-5","6-10",">10")
+)
+#
+befr <- read.csv("datas/befr.csv")
+befr <- befr$nom
+efr <- debutph("datas/efr.csv",befr)
+efr$tvo <- as.factor(ifelse(efr$vems.cvf.percent < (efr$vems.cvf.lin*100), "Oui","Non"))
+efr$tvr <- as.factor(ifelse((efr$vems.l < efr$vems.lin.l) & (efr$cvf.l < efr$cvf.lin.l), "Oui","Non"))
+efr$dlcob <- as.factor(ifelse((efr$dlc.ocor.percent < 70) & (efr$tvr == "Non") & (efr$tvo == "Non"), "Oui","Non" ))
+var_label(efr$tvo) <- "TVO"
+var_label(efr$tvr) <- "TVR"
+var_label(efr$dlcob) <- "DLCOc basse isolée"
+
+tt <- left_join(ttd,efr[,c(1,2,4,6,7,9,10,16:27)],"id")
 ```
 
-L'échantillon comporte `r nrow(tt)` cas pour `r ncol(tt)-2` variables. Ill ya beaucoup de donénes manquantes en particulier sur les résultats radiologiques.
+L'échantillon comporte `r nrow(tt)` cas pour `r ncol(tt)-2` variables. Le fichier comporte beaucoup de données manquantes en particulier sur les résultats radiologiques.
 
 ```{r}
 #| label: missing
 #| fig-cap: "Données manquantes"
-#| fig-height: 20
+#| fig-height: 30
 
-plot_missing(tt)
+plot_missing(tt,title = "% de données manquantes")
 ```
 
 
@@ -72,24 +121,21 @@ plot_missing(tt)
 ### Démographie
 
 ```{r}
-#| label: "tab1clinique"
+#| label: tab1clinique
+#| 
 
-tabl <- c(2,3,4,7:22)
-tt |> 
-  select(tabl) |> 
-  tbl_summary(by = groupe, missing = "no") |> 
-add_p() |> 
-  bold_labels() |> 
-  modify_caption("Description démographique")
-  
+tabcx(tt[,c(2, 3, 4, 7:12)], groupe,tit = "Description démographique",export = expt)
 ```
+
+
+
 
 ```{r}
 #| label: figdemo1
 #| fig-cap: "gravité selon le sexe"
 
 tt |> 
-  bardeuxph(sexe,groupe, titre = "gravité selon le sexe", stitre = "p = 0,017")
+  bardeuxph(sexe,groupe, titre = "gravité selon le sexe", stitre = "p = 0,031")
 ```
 
 ```{r}
@@ -102,7 +148,7 @@ tt |>
   geom_violin() +
   geom_boxplot(fill = "grey90", width = 0.2) +labs(
     title = "gravité & Hb de base",
-         subtitle = "p = 0.023",
+         subtitle = "p = 0.029",
          x = "xtitre",
          y = "Hb de base (g/dL)") +
     theme_light() +
@@ -129,7 +175,7 @@ tt |>
 #| fig-cap: "gravité & oxygène nocturne"
 
 tt |> 
-  bardeuxph(sexe,groupe, titre = "gravité & oxygène nocturne", stitre = "p = 0,018")
+  bardeuxph(sexe,groupe, titre = "gravité & oxygène nocturne", stitre = "p = 0,028")
 ```
 
 ```{r}
@@ -137,86 +183,280 @@ tt |>
 #| fig-cap: "gravité & néphropathie"
 
 tt |> 
-  bardeuxph(sexe,groupe, titre = "gravité & néphropathie", stitre = "p = 0,004")
+  bardeuxph(sexe,groupe, titre = "gravité & néphropathie", stitre = "p = 0,002")
 ```
+
+```{r}
+#| label: figdemo5
+#| fig-cap: "gravité & cardiopathie"
+
+tt |> 
+  bardeuxph(sexe,groupe, titre = "gravité & cardiopathie", stitre = "p = 0,028")
+```
+
+```{r}
+#| label: nsta
+#| fig-cap: "Nb total de STA"
+
+tt |> 
+  drop_na(sta) |> 
+  ggplot() +
+  aes(x = sta, fill = groupe) +
+  geom_bar(stat = "count", position = "dodge" ) +
+      labs(title = "Nb total de STA",
+         subtitle = "p = 0,05",
+         x = "Nb total de STA",
+         y = "n",
+         caption = "Nb total de STA",
+         fill = "") +
+    theme_light() +
+    colorspace::scale_fill_discrete_qualitative(palette = "Dynamic") +
+    theme(
+      plot.title = element_text(size = 16, face = "bold"),
+      plot.subtitle = element_text(size = 12),
+      axis.title.x = element_text(size = 12),
+      legend.title = element_text(size = 12),
+      axis.title.y = element_text(
+        size = 12,
+        angle = 0,
+        vjust = .5
+      ),
+      axis.text.x = element_text(
+        size = 12 ,
+      ),
+      axis.text.y = element_text(size = 12),
+      legend.position = "right"
+    )
+```
+
 
 ### Manifestations cliniques
 
 ```{r}
-#| label: "tab2clinique"
+#| label: tab2clinique
 
-tabl <- c(2,3,4,7:22)
-tt |> 
-  select(tabl) |> 
-  tbl_summary(by = groupe, missing = "no") |> 
-add_p() |> 
-  bold_labels() |> 
-  modify_caption("Manifestations cliniques")
-  
+tabcx(tt[,c(2,13:22)], groupe,tit = "Manifestations cliniques",export = expt)
+
 ```
 
 ### Traitements
 
+Aucun patient n'a eu d'allogreffe.
 ```{r}
-#| label: "tab3clinique"
+#| label: tab3tt
 
-tabl <- c(2,23:27)
-tt |> 
-  select(tabl) |> 
-  tbl_summary(by = groupe, missing = "no") |> 
-add_p() |> 
-  bold_labels() |> 
-  modify_caption("Traitements")
-  
+tabcx(tt[,c(2,23:27)], groupe,tit = "Traitements",export = expt)
 ```
 
 ### Antécédents
 
-```{r}
-#| label: "tab4clinique"
+Aucun patient n'a un antécédent de maladie VIH.
 
-tabl <- c(2,28:43)
-tt |> 
-  select(tabl) |> 
-  tbl_summary(by = groupe, missing = "no") |> 
-add_p() |> 
-  bold_labels() |> 
-  modify_caption("Antécédents")
-  
+```{r}
+#| label: tabatcd
+
+tabcx(tt[,c(2,29:34,36:45)], groupe,tit = "Antécédents", lt = TRUE,export = expt)
 ```
 
-## EFR
+### EFR
 
 
 ```{r}
-#| label: "tabefr1"
+#| label: tabefr1
 
-# tabl <- c(2,44,46,48,49,51,56,59,63,60,61,64:67)
-# tt |> 
-#   select(tabl) |> 
-#   tbl_summary(by = groupe, missing = "no") |> 
-# add_p() |> 
-#   bold_labels() |> 
-#   modify_caption("EFR")
+tabcx(tt[,c(2,108:125)], groupe, tit = "EFR",export = expt)
 ```
 
 
 ## atteintes radiologiques
 
-```{r}
-#| label: "taberad1"
+Les nodules & micronodules ont été exclus.  Les lésions retenues sont donc : 
 
-tabl <- c(2,68:128)
-tt |> 
-  select(tabl) |> 
-  tbl_summary(by = groupe, missing = "no") |> 
-add_p() |> 
-  bold_labels() |> 
-  modify_caption("EFR")
+- Kyste
+- Emphysème
+- Rayon de miel
+- Condensation
+- Verre dépoli
+- Réticulation
+- Bronchectasie
+- Bandes d'atélectasie
+- Diminution de volume des lobes inférieurs
+- Augmentation des vaisseaux pulmonaires
+
+l'analyse est réalisée sur 75 cas.
+
+```{r}
+#| label: radtotal
+#| #| tbl-cap: Anomalies radiologiques
+#| 
+rad <- c("kyste","emphyseme","rdm", "cond","vd", "ret.","bronch", "band","diminution.volume"  ,    "augmentation.vx.pulm" )
+tabx <- c("", "Cas","Témoins","p-value")
+zz <- tt |>
+    select(contains(rad)) |>
+    mutate_all(as.numeric)
+  zz$tot <- rowSums(zz) - ncol(zz)
+  zz$tot <- as.factor(ifelse(zz$tot > 0, "Oui", "Non"))
+  zz$groupe <- tt$groupe
+  zz <- drop_na(zz)
+ zzb <- fisher.test(zz$tot, zz$groupe)
+    pp <- beaup(zzb$p.value)
+    tabp <- c("Total","","",pp)
+    bb <- table(zz$tot, zz$groupe)
+    aa <- prop.table(bb,2)*100
+    for (l in 1:length(levels(zz$tot))) {
+      ll <- c(levels(zz$tot)[l],
+              paste0(bb[l,1]," (",round(aa[l,1],1),"%)"),
+              paste0(bb[l,2]," (",round(aa[l,2],1),"%)"),"")
+      tabp <- rbind(tabp,ll)
+    }
+    tabx <- rbind(tabx,tabp)
+      titn = c(" ", "cas","Témoins" ,"p.value")
+  #
+  # Export
+  #
+      txls <-  as.data.frame(rbind(titn, tabx) )
+    extit <- "tables/total_rx.xls"
+    WriteXLS(
+      txls, extit
+    )
+tabx |> 
+kbl(caption = "Anomalies radiologiques - Total",
+                row.names = FALSE,booktabs = TRUE) |> 
+  kable_styling(latex_options = c("HOLD_position")) |> 
+  row_spec(c(1,2), bold = T)
+```
+
+```{r}
+#| label: taberad1
+#| tbl-cap: Anomalies radiologiques - Détail
+
+tabcx(tt[,c(2,46:57,60,62:107)], groupe, tit = "Anomalies radiologiques", lt = TRUE, export = expt)
+```
+
+On peut regrouper les atteintes radiologiques par type, en prenant comme critère "*au moins un secteur atteint*". 
+
+
+
+
+```{r}
+#| label: tdmmacro
+
+tdmdrep <- function(nn) {
+  zz <- tt |>
+    select(contains(nn)) |>
+    mutate_all(as.numeric)
+  zz$tot <- rowSums(zz) - ncol(zz)
+  zz$tot <- ifelse(zz$tot > 0, nn, "non")
+  zz$groupe <- tt$groupe
+  zz <- na.omit(zz)
+  zzp <- chisq.test(zz$tot, zz$groupe)
+  zzp <- beaup(zzp$p.value)
+}
+```
+
+```{r}
+#| label: rad2
+#| #| tbl-cap: Anomalies radiologiques - Regroupement par lésion
+
+rad <- c("kyste","emphyseme","rdm", "cond","vd", "ret.","bronch", "band","diminution.volume"  ,    "augmentation.vx.pulm" )
+brad <- c("Kyste", "Emphysème", "Rayon de miel", "Condensation","Verre dépoli", "Réticulation", "Bronchectasie", "Bandes d'atélectasie", "diminution de volume des lobes inférieurs" ,"augmentation des vaisseaux pulmonaires" )
+tabx <- c("", "Cas","Témoins","p-value")
+
+for (i in 1:10){
+zz <- tt |>
+    select(contains(rad[i])) |>
+    mutate_all(as.numeric)
+  zz$tot <- rowSums(zz) - ncol(zz)
+  zz$tot <- as.factor(ifelse(zz$tot > 0, "Oui", "Non"))
+  zz$groupe <- tt$groupe
+  zz <- drop_na(zz)
+ zzb <- fisher.test(zz$tot, zz$groupe)
+    pp <- beaup(zzb$p.value)
+    tabp <- c(brad[i],"","",pp)
+    bb <- table(zz$tot, zz$groupe)
+    aa <- prop.table(bb,2)*100
+    for (l in 1:length(levels(zz$tot))) {
+      ll <- c(levels(zz$tot)[l],
+              paste0(bb[l,1]," (",round(aa[l,1],1),"%)"),
+              paste0(bb[l,2]," (",round(aa[l,2],1),"%)"),"")
+      tabp <- rbind(tabp,ll)
+    }
+    tabx <- rbind(tabx,tabp)
+}
+  titn = c(" ", "cas","Témoins" ,"p.value")
+  #
+  # Export
+  #
+      txls <-  as.data.frame(rbind(titn, tabx) )
+    extit <- "tables/lesions_rx.xls"
+    WriteXLS(
+      txls, extit
+    )
+
+tabx |> 
+kbl(caption = "Anomalies radiologiques - Regroupement par lésion",
+                row.names = FALSE,booktabs = TRUE,
+             longtable = FALSE) |> 
+    kable_styling(latex_options = c("repeat_header", "HOLD_position")) |> 
+  row_spec(c(1,2,5,8,11,14,17,20,23,26,29), bold = T)
+```
+
+### Par localisation
+
+```{r}
+#| label: radloc
+
+
+rad <- c(".lsd",".lm",".lid", ".culmen",".lingula", ".lig")
+brad <- c("Lobe supérieur droit", "Lobe moyen", "Lobe inférieur droit", "Culmen","Lingula","Lobe inférieur gauche")
+tabx <- c("", "Cas","Témoins","p-value")
+lesion <- c("kyste","emphyseme","rdm", "cond","vd", "ret.","bronch", "band","diminution.volume"  ,    "augmentation.vx.pulm" )
+for (i in 1:6){
+zz <- tt |>
+    select(contains(rad[i])) |>
+    select(contains(lesion)) |>
+    mutate_all(as.numeric)
+  zz$tot <- rowSums(zz) - ncol(zz)
+  zz$tot <- as.factor(ifelse(zz$tot > 0, "Oui", "Non"))
+  zz$groupe <- tt$groupe
+  zz <- na.omit(zz)
+ zzb <- fisher.test(zz$tot, zz$groupe)
+    pp <- beaup(zzb$p.value)
+    tabp <- c(brad[i],"","",pp)
+    bb <- table(zz$tot, zz$groupe)
+    aa <- prop.table(bb,2)*100
+    for (l in 1:length(levels(zz$tot))) {
+      ll <- c(levels(zz$tot)[l],
+              paste0(bb[l,1]," (",round(aa[l,1],1),"%)"),
+              paste0(bb[l,2]," (",round(aa[l,2],1),"%)"),"")
+      tabp <- rbind(tabp,ll)
+    }
+    tabx <- rbind(tabx,tabp)
+}
+  titn = c(" ", "cas","Témoins" ,"p.value")
+  #
+  # Export
+  #
+      txls <-  as.data.frame(rbind(titn, tabx) )
+    extit <- "tables/localisation_rx.xls"
+    WriteXLS(
+      txls, extit
+    )
+    #
+
+tabx |> 
+kbl(caption = "Anomalies radiologiques - Regroupement par lésion",
+                row.names = FALSE,booktabs = TRUE,
+             longtable = FALSE) |> 
+    kable_styling(latex_options = c("repeat_header", "HOLD_position")) |> 
+  row_spec(c(1,2,5,8,11,14,17), bold = T)
 ```
 
 
 
 
+## Technique {.appendix}
 
+Les données discrètes ont été présentés en pourcentage puis comparées par le test du $\Chi^2$ de Pearson avec correction de Yates si nécessaire. Les données numériques ont été présentées par leur médiane & les quartiles puis comparées par le test non paramétrique de Wilcoxon. 
 
+L'analyse statistique a été réalisée avec le logiciel **R** [@rstat] & diverses librairies en particulier celles du `tidyverse` [@tidy] & `baseph` [@baseph].
