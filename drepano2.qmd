@@ -43,7 +43,7 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, cache = FA
  fig.asp = 0.8,
  out.width = "100%"
 )
-expt <- TRUE
+expt <- FALSE
 ```
 
 
@@ -124,7 +124,7 @@ plot_missing(tt,title = "% de données manquantes")
 #| label: tab1clinique
 #| 
 
-tabcx(tt[,c(2, 3, 4, 7:12)], groupe,tit = "Description démographique",export = expt)
+tabcph(tt[,c(2, 3, 4, 7:12)], groupe,tit = "Description démographique",export = expt)
 ```
 
 
@@ -235,7 +235,7 @@ tt |>
 ```{r}
 #| label: tab2clinique
 
-tabcx(tt[,c(2,13:22)], groupe,tit = "Manifestations cliniques",export = expt)
+tabcph(tt[,c(2,13:22)], groupe,tit = "Manifestations cliniques",export = expt)
 
 ```
 
@@ -245,7 +245,7 @@ Aucun patient n'a eu d'allogreffe.
 ```{r}
 #| label: tab3tt
 
-tabcx(tt[,c(2,23:27)], groupe,tit = "Traitements",export = expt)
+tabcph(tt[,c(2,23:27)], groupe,tit = "Traitements",export = expt)
 ```
 
 ### Antécédents
@@ -255,7 +255,7 @@ Aucun patient n'a un antécédent de maladie VIH.
 ```{r}
 #| label: tabatcd
 
-tabcx(tt[,c(2,29:34,36:45)], groupe,tit = "Antécédents", lt = TRUE,export = expt)
+tabcph(tt[,c(2,29:34,36:45)], groupe,tit = "Antécédents", lt = TRUE,export = expt)
 ```
 
 ### EFR
@@ -264,7 +264,7 @@ tabcx(tt[,c(2,29:34,36:45)], groupe,tit = "Antécédents", lt = TRUE,export = ex
 ```{r}
 #| label: tabefr1
 
-tabcx(tt[,c(2,108:125)], groupe, tit = "EFR",export = expt)
+tabcph(tt[,c(2,108:125)], groupe, tit = "EFR",export = expt)
 ```
 
 
@@ -330,7 +330,7 @@ kbl(caption = "Anomalies radiologiques - Total",
 #| label: taberad1
 #| tbl-cap: Anomalies radiologiques - Détail
 
-tabcx(tt[,c(2,46:57,60,62:107)], groupe, tit = "Anomalies radiologiques", lt = TRUE, export = expt)
+tabcph(tt[,c(2,46:57,60,62:107)], groupe, tit = "Anomalies radiologiques", lt = TRUE, export = expt)
 ```
 
 On peut regrouper les atteintes radiologiques par type, en prenant comme critère "*au moins un secteur atteint*". 
@@ -400,6 +400,60 @@ kbl(caption = "Anomalies radiologiques - Regroupement par lésion",
     kable_styling(latex_options = c("repeat_header", "HOLD_position")) |> 
   row_spec(c(1,2,5,8,11,14,17,20,23,26,29), bold = T)
 ```
+#### Lésions & EFR
+
+```{r}
+#| label: lesion_efr
+
+tabl <- NULL
+for (i in 1:10){
+  tles <- tibble(tt$vem.scor.percent)
+  names(tles)[1] <- "vems"
+zz <- tt |>
+    select(contains(rad[i])) |>
+    mutate_all(as.numeric)
+  zz$tot <- rowSums(zz) - ncol(zz)
+  tles$tot <- as.factor(ifelse(zz$tot > 0, "Oui", "Non"))
+ zzt <- tles |> 
+   drop_na() |> 
+    group_by(tot) |> 
+   summarise(moy = mean(vems), et = sd(vems))
+ m1 <- paste0(round(zzt[[1,2]],1)," ± ", round(zzt[[1,3]],1))
+ m2 <- paste0(round(zzt[[2,2]],1)," ± ", round(zzt[[2,3]],1))
+ ttz <- t.test(vems~tot,var.equal = TRUE, data = tles)
+ pzz <- beaup(ttz$p.value)
+ lzz  <- c(brad[i],m1,m2,pzz)
+ tabl <- rbind (tabl,lzz)
+}
+colnames(tabl ) <- c("n = 75 ","Non","Oui", "p-value")
+tabl |> 
+kbl(caption = "VEMS corrigé et Anomalies radiologiques",
+                row.names = FALSE,booktabs = TRUE,
+             longtable = FALSE) |> 
+    kable_styling(latex_options = c("repeat_header", "HOLD_position")) |>     footnote((general = "Moyenne ± écart type")) 
+```
+
+On regarde la présence ou l'absence de lésions pulmonaires selon le VEMS corrigé. Les seules franchement significatives sont la diminution de volume des lobes inférieurs & l'augmentation des vaisseaux pulmonaires. Les bronchectasies sont à la limite de la significabilité. 
+
+```{r}
+#| label: gdim
+#| fig-cap: diminution de volume des lobes inférieurs & VEMS corrigé
+zzg  <- tibble(tt$vem.scor.percent)
+zzg$dim <- tt$diminution.volume
+zzg$aug <- tt$augmentation.vx.pulm
+names(zzg)<- c("vems","dim", "aug")
+zzg <- drop_na(zzg)
+
+barconfph(zzg,vems,dim, titre = "Diminution de volume des lobes inférieurs & VEMS corrigé", stitre = " p < 0,001 (n = 75)", tx = "Diminution de volume des lobes inférieurs", ty = "%")
+```
+
+```{r}
+#| label: gaug
+#| fig-cap: augmentation des vaisseaux pulmonaires & VEMS corrigé
+
+barconfph(zzg, vems, aug, titre = "Augmentation des vaisseaux pulmonaires & VEMS corrigé", stitre = " p = 0,009 (n = 75)", tx = "Augmentation des vaisseaux pulmonaires", ty = "%")
+```
+
 
 ### Par localisation
 
@@ -437,11 +491,11 @@ zz <- tt |>
   #
   # Export
   #
-      txls <-  as.data.frame(rbind(titn, tabx) )
-    extit <- "tables/localisation_rx.xls"
-    WriteXLS(
-      txls, extit
-    )
+    #   txls <-  as.data.frame(rbind(titn, tabx) )
+    # extit <- "tables/localisation_rx.xls"
+    # WriteXLS(
+    #   txls, extit
+    # )
     #
 
 tabx |> 
