@@ -42,4 +42,8 @@ vignettes/*.pdf
 *html
 *pdf
 *tex
+datas/
+*~
+*.zip
+.*
 

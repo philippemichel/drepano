@@ -1,0 +1,243 @@
+---
+title: "Atteinte pulmonaire chronique & drépanocytaire"
+author: "Philippe MICHEL"
+thanks: "Juliette BUTEAU & Dr Dr Jean-François BOITIAUX - Pneumologie"
+subtitle: "Compléments"
+lang: FR
+date: today
+date-format: "DD MMMM YYYY"
+format: 
+  pdf:
+    code-link: true
+    pdf-engine: lualatex
+keep-tex: true
+number-sections: true
+toc: true
+lof: true
+lot: true
+mainfont: Faune
+mainfontoptions:
+  - Numbers=OldStyle
+  - Ligatures=TeX
+sansfont: Myriad Pro
+sansfontoptions:
+  - Ligatures=TeX
+mathfontoptions: 
+  - Numbers=Proportional
+fig-cap-location: bottom
+tbl-cap-location: top
+class: scrartcl
+classoption: [french]
+papersize: a4paper
+editor: source
+cite-method: natbib
+bibliography: stat.bib
+license: "CC BY-SA"
+---
+
+```{r setup, include= FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, cache = FALSE,
+# knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+#
+ fig.width = 7,
+ fig.asp = 0.8,
+ out.width = "100%"
+)
+expt <- FALSE
+```
+
+
+
+```{r}
+#| label: info
+
+# rm(list=ls())
+library(corrplot)
+library(baseph)
+library(tidyverse)
+library(kableExtra)
+library(gtsummary)
+library(labelled)
+library(DataExplorer)
+library(WriteXLS)
+library(colorspace)
+
+# sessionInfo()
+```
+
+
+```{r}
+#| label: import
+
+rm(tt)
+bnom <- read.csv("datas/bnom.csv")
+bnom <- bnom$nom
+ttd <- debutph("datas/drepa2.csv", bnom)
+ttd$imc <- bmiph(ttd$imc, "fr")
+var_label(ttd$imc) <- "IMC"
+## Recodage de tt$cvo.an en tt$cvo.an_rec
+ttd$cvo.an <- cut(ttd$cvo.an,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(0, 1, 2, 3, 4,5, 10,50), 
+  labels = c("0","1","2","3","4","5-10",">10")
+)
+var_label(ttd$cvo.an) <- "Nb de CVO hospitalisée par an en moyenne"
+#
+## Recodage de tt$sta en tt$sta_rec
+# ttd$sta<- cut(ttd$sta,
+#   include.lowest = TRUE,
+#   right = FALSE,
+#   dig.lab = 4,
+#   breaks = c(0, 1, 2, 3,4,6, 11, 25),
+#   labels = c("0","1","2","3","4-5","6-10",">10")
+# )
+#
+befr <- read.csv("datas/befr.csv")
+befr <- befr$nom
+efr <- debutph("datas/efr.csv",befr)
+efr$tvo <- as.factor(ifelse(efr$vems.cvf.percent < (efr$vems.cvf.lin*100), "Oui","Non"))
+efr$tvr <- as.factor(ifelse((efr$vems.l < efr$vems.lin.l) & (efr$cvf.l < efr$cvf.lin.l), "Oui","Non"))
+efr$dlcob <- as.factor(ifelse((efr$dlc.ocor.percent < 70) & (efr$tvr == "Non") & (efr$tvo == "Non"), "Oui","Non" ))
+var_label(efr$tvo) <- "TVO"
+var_label(efr$tvr) <- "TVR"
+var_label(efr$dlcob) <- "DLCOc basse isolée"
+
+tt <- left_join(ttd,efr[,c(1,2,4,6,7,9,10,16:27)],"id")
+#
+bnom <- read.csv("datas/bgroupe.csv")
+bnom <- bnom$nom
+ttg <- debutph("datas/groupe.csv", bnom)
+ttg <- left_join(ttg,tt,"id")
+```
+
+## Description du tableau
+
+```{r}
+#| label: tabdesc
+#| tbl-cap: Tableau descriptif - Groupes
+
+tbl_summary(ttg[,2:6]) |> 
+ modify_header(label ~ " ") |> 
+   bold_labels() |> 
+  as_kable_extra(escape = FALSE, addtl_fmt = TRUE,booktabs = TRUE)
+```
+
+```{r}
+#| label: corr
+#| tbl-cap: Tableau de corrélation - Groupes
+ttg |> 
+  select(2:6) |> 
+  mutate_all(as.numeric) |> 
+  cor() |> 
+  corrplot(method = "ellipse", type = "lower", diag = FALSE, , addCoef.col = 'red')
+```
+
+Les nouvelles données ne sont pas trop corrélées & sont donc utilisables.
+
+
+## Dyspnée
+La dyspnée est définie par un mMRC > 1 ou Borg post test > 3. 
+
+```{r}
+#| label: dyspnee1
+
+ttg <- ttg |> 
+  mutate(dysp = ifelse((m.mrc >1 | borg.post>3), "Dyspnée modérée à sévère", "Dyspnée faible ou absente")) |> 
+  mutate(dysp = as.factor(dysp))
+```
+
+
+## Nb de STA
+
+```{r}
+#| label: statab
+#| tbl-cap: STA & lésions pulmonaires
+
+tsta <- NULL
+  tbl_continuous(
+    data = ttg,
+    variable = sta,
+    include = c(augmvxpuml,dimlobe, lesion,atteinte)
+  ) |> 
+    add_p() |> 
+     modify_header(label ~ " ") |> 
+   bold_labels() |> 
+  as_kable_extra(escape = FALSE, addtl_fmt = TRUE,booktabs = TRUE)
+```
+
+```{r}
+#| label: macrohist
+
+histm <- function(dfx, varx, varn, tit = "", stit){
+  stit <- paste0("p = ",stit)
+dfx |> 
+  drop_na({{varn}}) |> 
+  ggplot() +
+  aes(x = {{varn}}, fill = {{varx}}, color = {{varx}}) +
+  geom_histogram(, binwidth = 1, alpha = 0.9) +
+  facet_grid(vars({{varx}})) +
+  labs(title = tit,
+       subtitle = stit,
+       x = "Nombre de STA",
+       y = "n",
+       caption = tit) +
+  scale_y_continuous(limits = c(0, 10), breaks = seq(0,10,2)) +
+  theme_light() +
+  scale_fill_discrete_qualitative(palette = "Dynamic") +
+  theme(
+    strip.text.y = element_text(size=12),
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 14),
+    axis.title.x = element_text(size = 12),
+    legend.title = element_blank(),
+    axis.title.y = element_text(
+      size = 12,
+      angle = 0,
+      vjust = .5
+    ),
+    axis.text.x = element_text(
+      size = 12
+    ),
+    axis.text.y = element_text(size = 12),
+    legend.position = "none"
+  )
+}
+```
+
+
+```{r}
+#| label: gglesion
+#| fig-cap: STA & lésion radiologique prédominante
+
+histm(ttg, varn = sta, varx = lesion, tit = "STA & lésion radiologique prédominante", stit = "0,03")
+```
+
+```{r}
+#| label: ggaug
+#| fig-cap: STA & augmentation des vaisseaux pulmonaires	
+
+histm(ttg, varn = sta, varx = augmvxpuml, tit = "STA & augmentation des vaisseaux pulmonaires", stit = "0,025")
+```
+
+
+```{r}
+#| label: ggdim
+#| fig-cap: STA & diminution de volume des lobes inférieurs
+
+histm(ttg, varn = sta, varx = dimlobe, tit = "STA & diminution de volume des lobes inférieurs", stit = "0,005")
+```
+
+```{r}
+#| label: ggatt
+#| fig-cap: STA & atteinte parenchymateuse
+
+histm(ttg, varn = sta, varx = atteinte, tit = "STA & atteinte parenchymateuse", stit = "0,073")
+```
+
+## Technique {.appendix}
+
+Les données discrètes ont été présentés en pourcentage puis comparées par le test du $\Chi^2$ de Pearson avec correction de Yates si nécessaire. Les données numériques ont été présentées par leur médiane avec les quartiles puis comparées par le test non paramétrique de Wilcoxon. 
+
+L'analyse statistique a été réalisée avec le logiciel **R** [@rstat] & diverses librairies en particulier celles du `tidyverse` [@tidy] & `baseph` [@baseph].

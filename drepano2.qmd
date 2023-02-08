@@ -43,7 +43,7 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, cache = FA
  fig.asp = 0.8,
  out.width = "100%"
 )
-expt <- FALSE
+expt <- TRUE
 ```
 
 
@@ -122,9 +122,9 @@ plot_missing(tt,title = "% de données manquantes")
 
 ```{r}
 #| label: tab1clinique
-#| 
+#| tbl-cap: Description démographique
 
-tabcph(tt[,c(2, 3, 4, 7:12)], groupe,tit = "Description démographique",export = expt)
+tabcph(tt[,c(2, 3, 4, 7:12, 45)], groupe,tit = "Description démographique",export = expt)
 ```
 
 
@@ -234,6 +234,7 @@ tt |>
 
 ```{r}
 #| label: tab2clinique
+#| tbl-cap: Manifestations cliniques
 
 tabcph(tt[,c(2,13:22)], groupe,tit = "Manifestations cliniques",export = expt)
 
@@ -244,6 +245,7 @@ tabcph(tt[,c(2,13:22)], groupe,tit = "Manifestations cliniques",export = expt)
 Aucun patient n'a eu d'allogreffe.
 ```{r}
 #| label: tab3tt
+#| tbl-cap: Traitements
 
 tabcph(tt[,c(2,23:27)], groupe,tit = "Traitements",export = expt)
 ```
@@ -254,8 +256,9 @@ Aucun patient n'a un antécédent de maladie VIH.
 
 ```{r}
 #| label: tabatcd
+#| tbl-cap: Antécédents
 
-tabcph(tt[,c(2,29:34,36:45)], groupe,tit = "Antécédents", lt = TRUE,export = expt)
+tabcph(tt[,c(2,29:34,36:43)], groupe,tit = "Antécédents", lt = TRUE,export = expt)
 ```
 
 ### EFR
@@ -263,6 +266,7 @@ tabcph(tt[,c(2,29:34,36:45)], groupe,tit = "Antécédents", lt = TRUE,export = e
 
 ```{r}
 #| label: tabefr1
+#| tbl-cap: EFR
 
 tabcph(tt[,c(2,108:125)], groupe, tit = "EFR",export = expt)
 ```
@@ -287,7 +291,7 @@ l'analyse est réalisée sur 75 cas.
 
 ```{r}
 #| label: radtotal
-#| #| tbl-cap: Anomalies radiologiques
+#| tbl-cap: Anomalies radiologiques
 #| 
 rad <- c("kyste","emphyseme","rdm", "cond","vd", "ret.","bronch", "band","diminution.volume"  ,    "augmentation.vx.pulm" )
 tabx <- c("", "Cas","Témoins","p-value")
@@ -307,7 +311,7 @@ zz <- tt |>
       ll <- c(levels(zz$tot)[l],
               paste0(bb[l,1]," (",round(aa[l,1],1),"%)"),
               paste0(bb[l,2]," (",round(aa[l,2],1),"%)"),"")
-      tabp <- rbind(tabp,ll)
+      tabp <- rbind(tab p,ll)
     }
     tabx <- rbind(tabx,tabp)
       titn = c(" ", "cas","Témoins" ,"p.value")
@@ -320,8 +324,7 @@ zz <- tt |>
       txls, extit
     )
 tabx |> 
-kbl(caption = "Anomalies radiologiques - Total",
-                row.names = FALSE,booktabs = TRUE) |> 
+kbl(row.names = FALSE,booktabs = TRUE) |> 
   kable_styling(latex_options = c("HOLD_position")) |> 
   row_spec(c(1,2), bold = T)
 ```
@@ -356,7 +359,7 @@ tdmdrep <- function(nn) {
 
 ```{r}
 #| label: rad2
-#| #| tbl-cap: Anomalies radiologiques - Regroupement par lésion
+#| tbl-cap: Anomalies radiologiques - Regroupement par lésion
 
 rad <- c("kyste","emphyseme","rdm", "cond","vd", "ret.","bronch", "band","diminution.volume"  ,    "augmentation.vx.pulm" )
 brad <- c("Kyste", "Emphysème", "Rayon de miel", "Condensation","Verre dépoli", "Réticulation", "Bronchectasie", "Bandes d'atélectasie", "diminution de volume des lobes inférieurs" ,"augmentation des vaisseaux pulmonaires" )
@@ -394,8 +397,7 @@ zz <- tt |>
     )
 
 tabx |> 
-kbl(caption = "Anomalies radiologiques - Regroupement par lésion",
-                row.names = FALSE,booktabs = TRUE,
+kbl(row.names = FALSE,booktabs = TRUE,
              longtable = FALSE) |> 
     kable_styling(latex_options = c("repeat_header", "HOLD_position")) |> 
   row_spec(c(1,2,5,8,11,14,17,20,23,26,29), bold = T)
@@ -404,6 +406,7 @@ kbl(caption = "Anomalies radiologiques - Regroupement par lésion",
 
 ```{r}
 #| label: lesion_efr
+#| tbl-cap: VEMS corrigé et Anomalies radiologiques
 
 tabl <- NULL
 for (i in 1:10){
@@ -427,10 +430,10 @@ zz <- tt |>
 }
 colnames(tabl ) <- c("n = 75 ","Non","Oui", "p-value")
 tabl |> 
-kbl(caption = "VEMS corrigé et Anomalies radiologiques",
-                row.names = FALSE,booktabs = TRUE,
+kbl(row.names = FALSE,booktabs = TRUE,
              longtable = FALSE) |> 
-    kable_styling(latex_options = c("repeat_header", "HOLD_position")) |>     footnote((general = "Moyenne ± écart type")) 
+    kable_styling(latex_options = c("repeat_header", "HOLD_position")) |>     footnote((general = "Moyenne ± écart type"))
+  WriteXLS(as.data.frame(tabl),"lesions_vems")
 ```
 
 On regarde la présence ou l'absence de lésions pulmonaires selon le VEMS corrigé. Les seules franchement significatives sont la diminution de volume des lobes inférieurs & l'augmentation des vaisseaux pulmonaires. Les bronchectasies sont à la limite de la significabilité. 
@@ -459,6 +462,7 @@ barconfph(zzg, vems, aug, titre = "Augmentation des vaisseaux pulmonaires & VEMS
 
 ```{r}
 #| label: radloc
+#| tbl-cap: Anomalies radiologiques - Regroupement par localisation
 
 
 rad <- c(".lsd",".lm",".lid", ".culmen",".lingula", ".lig")
@@ -491,16 +495,15 @@ zz <- tt |>
   #
   # Export
   #
-    #   txls <-  as.data.frame(rbind(titn, tabx) )
-    # extit <- "tables/localisation_rx.xls"
-    # WriteXLS(
-    #   txls, extit
-    # )
-    #
+      txls <-  as.data.frame(rbind(titn, tabx) )
+    extit <- "tables/localisation_rx.xls"
+    WriteXLS(
+      txls, extit
+    )
+
 
 tabx |> 
-kbl(caption = "Anomalies radiologiques - Regroupement par lésion",
-                row.names = FALSE,booktabs = TRUE,
+kbl(row.names = FALSE,booktabs = TRUE,
              longtable = FALSE) |> 
     kable_styling(latex_options = c("repeat_header", "HOLD_position")) |> 
   row_spec(c(1,2,5,8,11,14,17), bold = T)
