@@ -138,14 +138,53 @@ Les nouvelles données ne sont pas trop corrélées & sont donc utilisables.
 
 
 ## Dyspnée
-La dyspnée est définie par un mMRC > 1 ou Borg post test > 3. 
+
+ 
+Tout dépend de la référence prise (in fine les deux calculs sont non contributifs).
+
+### Patients dyspnéiques
+La dyspnée est définie par un mMRC > 1 ou Borg post test > 3 (@tbl-ouid). 
 
 ```{r}
 #| label: dyspnee1
 
 ttg <- ttg |> 
-  mutate(dysp = ifelse((m.mrc >1 | borg.post>3), "Dyspnée modérée à sévère", "Dyspnée faible ou absente")) |> 
+  mutate(dysp = ifelse((m.mrc > 1 | borg.post > 3), "Dyspnée modérée à sévère", "Dyspnée faible ou absente")) |> 
   mutate(dysp = as.factor(dysp))
+```
+
+```{r}
+#| label: tbl-ouid
+#| tbl-cap: Référence dyspnéique
+ 
+mrc <- ttg$m.mrc > 1
+bor <- ttg$borg.post > 3
+dys <- mrc | bor
+xx <- which(bor & is.na(mrc))
+dys[xx] <- TRUE
+yy <- which(mrc & is.na(bor))
+dys[yy] <- TRUE
+dyspnée <- factor(dys, labels = c("Non Dyspnéique", "Dyspnéique"))
+kbl(table(dyspnée)) 
+```
+
+### Patients non dyspnéique
+
+La dyspnée est définie par un mMRC $\leq$ 1 ou Borg post test $\leq$ 3 (@tbl-nond). 
+
+```{r}
+#| label: tbl-nond
+#| tbl-cap: Référence non dyspnéique
+
+mrc <- ttg$m.mrc <= 1
+bor <- ttg$borg.post <= 3
+dys <- mrc | bor
+xx <- which(bor & is.na(mrc))
+dys[xx] <- TRUE
+yy <- which(mrc & is.na(bor))
+dys[yy] <- TRUE
+dyspnée <- factor(dys, labels = c("Dyspnéique", "non Dyspnéique"))
+kbl(table(dyspnée)) 
 ```
 
 
@@ -235,6 +274,8 @@ histm(ttg, varn = sta, varx = dimlobe, tit = "STA & diminution de volume des lob
 
 histm(ttg, varn = sta, varx = atteinte, tit = "STA & atteinte parenchymateuse", stit = "0,073")
 ```
+
+\clearpage
 
 ## Technique {.appendix}
 
