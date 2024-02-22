@@ -1,0 +1,187 @@
+---
+subtitle: "Compléments 3.0"
+cache: false
+---
+
+# Demandes
+
+```{r}
+#| label: info
+
+rm(list = ls())
+classeur <- "complement3.xlsx"
+expx <- TRUE
+tt <- readRDS("drepano.RDS")
+
+library(corrplot)
+library(baseph)
+library(tidyverse)
+library(kableExtra)
+library(gtsummary)
+library(DataExplorer)
+library(WriteXLS)
+library(colorspace)
+
+# sessionInfo()
+theme_gtsummary_language(language = "fr", decimal.mark = ",")
+theme_gtsummary_journal(journal = "jama")
+options(OutDec = ",")
+```
+
+## Description de la population
+
+```{r}
+#| label: tbl-desc
+#| tbl-cap: Tableau descriptif - Démographique
+#| 
+tt |> 
+  dplyr::select(2:13,46, groupe) |>
+tbl_summary(by = groupe,
+            missing = "no") |> 
+            add_overall(col_label= "**Total**, N = {N}") %>%
+ modify_header(label ~ " ") |> 
+   bold_labels() |> 
+  add_n() |>
+  add_p() |>
+ pexptabph(exp = expx, nomfich = classeur, nomsheet = "demographie", lg = TRUE)
+```
+
+# Antécédents
+
+```{r}
+#| label: tbl-atcd
+#| tbl-cap: Antécédents
+tt |> 
+  dplyr::select(starts_with("atcd"), groupe) |>
+tbl_summary(by = groupe) |> 
+    add_overall(col_label= "**Total**, N = {N}") %>%
+ modify_header(label ~ " ") |> 
+   bold_labels() |> 
+ gexptabph(exp = expx, nomfich = classeur, nomsheet = "atcd")
+```
+
+Pour les antécédents je n'ai que des valeurs `Oui`, c’est à dire des cases cochées. Les cases non cochées peuvent correspondre à des valeurs `Non` ou non remplies. 
+
+## STA & CVO
+```{r} 
+
+
+#| label: tbl-stacvo
+#| tbl-cap: Antécédents
+tt |> 
+  dplyr::select (sta,cvo_an, groupe)|>
+  mutate('au moins un STA' = ifelse(sta > 0, "yes", "no")) |>
+  mutate('au moins une CVO' = ifelse(cvo_an != "0", "yes", "no")) |>
+tbl_summary(by = groupe,
+            missing = "no",
+            type = all_continuous() ~ "continuous2",
+            statistic = all_continuous() ~ c(
+      "{median} ({p25}, {p75})",
+      "{mean}, {sd}",
+      "{min}, {max}")) |> 
+     
+    add_overall(col_label= "**Total**, N = {N}") %>%
+ modify_header(label ~ " ") |> 
+   bold_labels() |> 
+  add_n() |>
+  add_p() |>
+ gexptabph(exp = expx, nomfich = classeur, nomsheet = "STA_CVO", lg = TRUE)
+```
+
+# Hb de base & génotype
+
+```{r}
+
+#| label: tbl-geno
+#| tbl-cap: Hb de base & génotype
+
+tt |> 
+  dplyr::select(hb_base, type) |>
+tbl_summary(by = type,
+            missing = "no",
+            type = all_continuous() ~ "continuous2",
+            statistic = all_continuous() ~ c(
+      "{median} ({p25}, {p75})",
+      "{mean}, {sd}",
+      "{min}, {max}")) |> 
+            add_overall(col_label= "**Total**\n N = {N}") |> 
+   modify_header(label ~ " ") |> 
+   bold_labels() |> 
+ gexptabph(exp = expx, nomfich = classeur, nomsheet = "hb_type")
+
+```
+
+# STA & lésions pulmonaires
+
+microkystes, réticulations, bronchectasies, verre dépoli, perte de volume, vaisseaux augmentés
+
+```{r}
+#| label: tbl-rad2
+#| tbl-cap: "Anomalies radiologiques - Regroupement par lésion"
+
+  rad <- c("kyste","vd", "ret_","bronch",   "augmentation_vx_pulm" ,"diminution_volume")
+  brad <- c("sta","kyste", "Verre dépoli", "Réticulation", "Bronchectasie", "augmentation des vaisseaux pulmonaires" , "diminution de volume des lobes inférieurs")
+  tabx <- NULL
+  for(i in rad){
+    zz <- tt |> 
+      select(starts_with(i)) |>
+      mutate_all(function(x) if_else(x == "yes", 1, 0))
+    aa <- ifelse(rowSums(zz) > 0, "yes", "no")
+    tabx <- cbind(tabx, aa)
+  }
+#
+  tabx <- as_tibble(tabx) |> 
+    mutate_all(as.factor)
+  names(tabx) <- brad[-1]
+  tabx$sta <- tt$sta
+  tabx <- 
+    pivot_longer(tabx, cols = -sta) |>
+    dplyr::filter(value == "yes") |> 
+    dplyr::select(-value)
+#
+  tbl_summary(tabx, by = "name", missing = "no") |> 
+    add_p( test = everything() ~ "chisq.test") |> 
+    modify_header(label ~ " ") |> 
+    add_n() |> 
+    gexptabph(exp = expx, nomfich = classeur, nomsheet = "stalesions")
+  
+```
+
+
+## Facteurs de risque
+
+
+
+```{r}
+#| label: tbl-risq1
+#| tbl-cap: "Facteurs de risque"
+
+tt |> 
+  select(3:6,8:12, groupe) |>
+  tbl_summary(by = groupe,
+              missing = "no") |>
+    add_p() |> 
+  modify_header(label ~ " ") |> 
+    pexptabph(exp = expx, nomfich = classeur, nomsheet = "risq1")
+  
+```
+
+```{r}
+#| label: tbl-risq2
+#| tbl-cap: "Facteurs de risque - régression"
+
+tt$typex <-   fct_lump_n(tt$type, n = 4)
+tt$typex <- tt$typex %>%
+  fct_relevel(
+    "Other", "S/S", "S/C", "S/Bthal+", "S/bthal°"
+  )
+
+
+
+glm(groupe ~ ., data = tt |> select(age, sexe,imcx,typex, hb_base,  groupe), family = binomial) |> 
+  tbl_regression(exponentiate = TRUE) |> 
+  modify_header(label ~ " ") |> 
+  bold_labels() |>
+  pexptabph(exp = expx, nomfich = classeur, nomsheet = "risq2")
+```
+

@@ -1,61 +1,22 @@
 ---
-title: "Atteinte pulmonaire chronique & drépanocytaire"
-author: "Philippe MICHEL"
-thanks: "Juliette BUTEAU & Dr Dr Jean-François BOITIAUX - Pneumologie"
-subtitle: "Compléments"
-lang: FR
-date: today
-date-format: "DD MMMM YYYY"
-format: 
-  pdf:
-    code-link: true
-    pdf-engine: lualatex
-keep-tex: true
-number-sections: true
-toc: true
-lof: true
-lot: true
-mainfont: Faune
-mainfontoptions:
-  - Numbers=OldStyle
-  - Ligatures=TeX
-sansfont: Myriad Pro
-sansfontoptions:
-  - Ligatures=TeX
-mathfontoptions: 
-  - Numbers=Proportional
-fig-cap-location: bottom
-tbl-cap-location: top
-class: scrartcl
-classoption: [french]
-papersize: a4paper
-editor: source
-cite-method: natbib
-bibliography: stat.bib
-license: "CC BY-SA"
+subtitle: "Compléments 2.0"
+cache: true
 ---
-
-```{r setup, include= FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, cache = FALSE,
-# knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
-#
- fig.width = 7,
- fig.asp = 0.8,
- out.width = "100%"
-)
-expt <- FALSE
-```
 
 
 
 ```{r}
 #| label: info
 
-# rm(list=ls())
+rm(list=ls())
+classeur <- "complement2.xlsx"
+expx <- FALSE
+
 library(corrplot)
 library(baseph)
 library(tidyverse)
 library(kableExtra)
+library(janitor)
 library(gtsummary)
 library(labelled)
 library(DataExplorer)
@@ -69,21 +30,25 @@ library(colorspace)
 ```{r}
 #| label: import
 
-rm(tt)
 bnom <- read.csv("datas/bnom.csv")
-bnom <- bnom$nom
-ttd <- debutph("datas/drepa2.csv", bnom)
-ttd$imc <- bmiph(ttd$imc, "fr")
-var_label(ttd$imc) <- "IMC"
-## Recodage de tt$cvo.an en tt$cvo.an_rec
-ttd$cvo.an <- cut(ttd$cvo.an,
+ttd <- read_delim("datas/drepa2.csv", delim = ",", show_col_types = FALSE) |> 
+  clean_names() |> 
+  mutate_if(is.character, as.factor)
+var_label(ttd) <- bnom$nom
+#
+ttd$imcx <- bmiph(ttd$imc, "fr")
+var_label(ttd$imcx) <- "IMC"
+ttd <- ttd |> 
+  relocate(imcx, .after = imc)
+## Recodage de tt$cvo_an en tt$cvo_an_rec
+ttd$cvo_an <- cut(ttd$cvo_an,
   include.lowest = TRUE,
   right = FALSE,
   dig.lab = 4,
   breaks = c(0, 1, 2, 3, 4,5, 10,50), 
   labels = c("0","1","2","3","4","5-10",">10")
 )
-var_label(ttd$cvo.an) <- "Nb de CVO hospitalisée par an en moyenne"
+var_label(ttd$cvo_an) <- "Nb de CVO hospitalisée par an en moyenne"
 #
 ## Recodage de tt$sta en tt$sta_rec
 # ttd$sta<- cut(ttd$sta,
@@ -95,11 +60,13 @@ var_label(ttd$cvo.an) <- "Nb de CVO hospitalisée par an en moyenne"
 # )
 #
 befr <- read.csv("datas/befr.csv")
-befr <- befr$nom
-efr <- debutph("datas/efr.csv",befr)
-efr$tvo <- as.factor(ifelse(efr$vems.cvf.percent < (efr$vems.cvf.lin*100), "Oui","Non"))
-efr$tvr <- as.factor(ifelse((efr$vems.l < efr$vems.lin.l) & (efr$cvf.l < efr$cvf.lin.l), "Oui","Non"))
-efr$dlcob <- as.factor(ifelse((efr$dlc.ocor.percent < 70) & (efr$tvr == "Non") & (efr$tvo == "Non"), "Oui","Non" ))
+efr <- read_delim("datas/efr.csv",delim = ",") |> 
+  clean_names()
+var_label(efr) <- befr$nom
+#
+efr$tvo <- as.factor(ifelse(efr$vems_cvf_percent < (efr$vems_cvf_lin*100), "Oui","Non"))
+efr$tvr <- as.factor(ifelse((efr$vems_l < efr$vems_lin_l) & (efr$cvf_l < efr$cvf_lin_l), "Oui","Non"))
+efr$dlcob <- as.factor(ifelse((efr$dlc_ocor_percent < 70) & (efr$tvr == "Non") & (efr$tvo == "Non"), "Oui","Non" ))
 var_label(efr$tvo) <- "TVO"
 var_label(efr$tvr) <- "TVR"
 var_label(efr$dlcob) <- "DLCOc basse isolée"
@@ -112,29 +79,31 @@ ttg <- debutph("datas/groupe.csv", bnom)
 ttg <- left_join(ttg,tt,"id")
 ```
 
-## Description du tableau
+## Description de la population
 
 ```{r}
 #| label: tabdesc
 #| tbl-cap: Tableau descriptif - Groupes
-
-tbl_summary(ttg[,2:6]) |> 
+tt |> 
+  dplyr::select(2:8, sta,cvo_an) |>
+  mutate('au moins un STA' = ifelse(sta > 0, "yes", "no")) |>
+  mutate('au moins une CVO' = ifelse(cvo_an != "0", "yes", "no")) |>
+tbl_summary(by = groupe,
+            missing = "no",
+            type = all_continuous() ~ "continuous2",
+            statistic = all_continuous() ~ c(
+      "{median} ({p25}, {p75})",
+      "{mean}, {sd}",
+      "{min}, {max}")) |> 
+     
+    add_overall() %>%
  modify_header(label ~ " ") |> 
    bold_labels() |> 
-  as_kable_extra(escape = FALSE, addtl_fmt = TRUE,booktabs = TRUE)
+  add_n() |>
+  add_p() |>
+ pexptabph(exp = expx, nomfich = classeur, nomsheet = "demographie")
 ```
 
-```{r}
-#| label: corr
-#| tbl-cap: Tableau de corrélation - Groupes
-ttg |> 
-  select(2:6) |> 
-  mutate_all(as.numeric) |> 
-  cor() |> 
-  corrplot(method = "ellipse", type = "lower", diag = FALSE, , addCoef.col = 'red')
-```
-
-Les nouvelles données ne sont pas trop corrélées & sont donc utilisables.
 
 
 ## Dyspnée
@@ -149,136 +118,73 @@ La dyspnée est définie par un mMRC > 1 ou Borg post test > 3 (@tbl-ouid).
 #| label: dyspnee1
 
 ttg <- ttg |> 
-  mutate(dysp = ifelse((m.mrc > 1 | borg.post > 3), "Dyspnée modérée à sévère", "Dyspnée faible ou absente")) |> 
+  mutate(dysp = ifelse((m_mrc > 1 | borg_post > 3), "Dyspnée modérée à sévère", "Dyspnée faible ou absente")) |> 
   mutate(dysp = as.factor(dysp))
 ```
 
-```{r}
-#| label: tbl-ouid
-#| tbl-cap: Référence dyspnéique
- 
-mrc <- ttg$m.mrc > 1
-bor <- ttg$borg.post > 3
-dys <- mrc | bor
-xx <- which(bor & is.na(mrc))
-dys[xx] <- TRUE
-yy <- which(mrc & is.na(bor))
-dys[yy] <- TRUE
-dyspnée <- factor(dys, labels = c("Non Dyspnéique", "Dyspnéique"))
-kbl(table(dyspnée)) 
-```
-
-### Patients non dyspnéique
-
-La dyspnée est définie par un mMRC $\leq$ 1 ou Borg post test $\leq$ 3 (@tbl-nond). 
+## Traitements
 
 ```{r}
-#| label: tbl-nond
-#| tbl-cap: Référence non dyspnéique
+#| label: tbl-traitements
+#| tbl-cap: Traitements
 
-mrc <- ttg$m.mrc <= 1
-bor <- ttg$borg.post <= 3
-dys <- mrc | bor
-xx <- which(bor & is.na(mrc))
-dys[xx] <- TRUE
-yy <- which(mrc & is.na(bor))
-dys[yy] <- TRUE
-dyspnée <- factor(dys, labels = c("Dyspnéique", "non Dyspnéique"))
-kbl(table(dyspnée)) 
-```
-
-
-## Nb de STA
-
-```{r}
-#| label: statab
-#| tbl-cap: STA & lésions pulmonaires
-
-tsta <- NULL
-  tbl_continuous(
-    data = ttg,
-    variable = sta,
-    include = c(augmvxpuml,dimlobe, lesion,atteinte)
-  ) |> 
-    add_p() |> 
-     modify_header(label ~ " ") |> 
+tt |> 
+ dplyr::select(24:29,groupe) |> 
+ tbl_summary(by = groupe,
+            missing = "no") |> 
+    add_overall() %>%
+ modify_header(label ~ " ") |> 
    bold_labels() |> 
-  as_kable_extra(escape = FALSE, addtl_fmt = TRUE,booktabs = TRUE)
+  add_n() |>
+  add_p() |>
+ pexptabph(exp = expx, nomfich = classeur, nomsheet = "traitement")
 ```
+
+
+## Dyspnée
 
 ```{r}
-#| label: macrohist
+#| label: tbl-dyspnee2
+#| tbl-cap: Dyspnée
 
-histm <- function(dfx, varx, varn, tit = "", stit){
-  stit <- paste0("p = ",stit)
-dfx |> 
-  drop_na({{varn}}) |> 
-  ggplot() +
-  aes(x = {{varn}}, fill = {{varx}}, color = {{varx}}) +
-  geom_histogram(, binwidth = 1, alpha = 0.9) +
-  facet_grid(vars({{varx}})) +
-  labs(title = tit,
-       subtitle = stit,
-       x = "Nombre de STA",
-       y = "n",
-       caption = tit) +
-  scale_y_continuous(limits = c(0, 10), breaks = seq(0,10,2)) +
-  theme_light() +
-  scale_fill_discrete_qualitative(palette = "Dynamic") +
-  theme(
-    strip.text.y = element_text(size=12),
-    plot.title = element_text(size = 16, face = "bold"),
-    plot.subtitle = element_text(size = 14),
-    axis.title.x = element_text(size = 12),
-    legend.title = element_blank(),
-    axis.title.y = element_text(
-      size = 12,
-      angle = 0,
-      vjust = .5
-    ),
-    axis.text.x = element_text(
-      size = 12
-    ),
-    axis.text.y = element_text(size = 12),
-    legend.position = "none"
-  )
-}
+tt <- tt |> 
+ mutate(dyspnee = ifelse((m_mrc > 1 | borg_post > 3), "yes", "no")) 
+ var_label(tt$dyspnee) <- "Dyspnée"
+
+tt |> 
+  dplyr::select(dyspnee, groupe) |> 
+  tbl_summary(by = groupe,
+              missing = "no") |> 
+    add_overall() %>%
+  modify_header(label ~ " ") |> 
+   bold_labels() |> 
+    add_n() |>
+    add_p()|>
+ pexptabph(exp = expx, nomfich = classeur, nomsheet = "dyspnee")
 ```
 
+
+## Anomalies au scanner thoracique
 
 ```{r}
-#| label: gglesion
-#| fig-cap: STA & lésion radiologique prédominante
+zz <- tt |> 
+  select(47:102) |> 
+  mutate_all(function(x) if_else(x == "yes",1,0))
+  anomalie = rowSums(zz,na.rm = TRUE)
+tt$anomalie <- anomalie
 
-histm(ttg, varn = sta, varx = lesion, tit = "STA & lésion radiologique prédominante", stit = "0,03")
+
+tt <- tt |> 
+  mutate(anomalie = ifelse(anomalie > 0, "yes", "no"))
+var_label(tt$anomalie) <- "Au moins une anomalie au scanner thoracique"
+tt |> 
+  dplyr::select(anomalie, groupe) |> 
+  tbl_summary(by = groupe,
+              missing = "no") |> 
+    add_overall() %>%
+  modify_header(label ~ " ") |> 
+   bold_labels() |> 
+    add_n() |>
+    add_p()|>
+ pexptabph(exp = expx, nomfich = classeur, nomsheet = "anomalie")
 ```
-
-```{r}
-#| label: ggaug
-#| fig-cap: STA & augmentation des vaisseaux pulmonaires	
-
-histm(ttg, varn = sta, varx = augmvxpuml, tit = "STA & augmentation des vaisseaux pulmonaires", stit = "0,025")
-```
-
-
-```{r}
-#| label: ggdim
-#| fig-cap: STA & diminution de volume des lobes inférieurs
-
-histm(ttg, varn = sta, varx = dimlobe, tit = "STA & diminution de volume des lobes inférieurs", stit = "0,005")
-```
-
-```{r}
-#| label: ggatt
-#| fig-cap: STA & atteinte parenchymateuse
-
-histm(ttg, varn = sta, varx = atteinte, tit = "STA & atteinte parenchymateuse", stit = "0,073")
-```
-
-\clearpage
-
-## Technique {.appendix}
-
-Les données discrètes ont été présentés en pourcentage puis comparées par le test du $\Chi^2$ de Pearson avec correction de Yates si nécessaire. Les données numériques ont été présentées par leur médiane avec les quartiles puis comparées par le test non paramétrique de Wilcoxon. 
-
-L'analyse statistique a été réalisée avec le logiciel **R** [@rstat] & diverses librairies en particulier celles du `tidyverse` [@tidy] & `baseph` [@baseph].

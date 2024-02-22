@@ -49,12 +49,13 @@ library(tidyverse)
 library(kableExtra)
 library(gtsummary)
 library(labelled)
+library(colorspace)
 library(DataExplorer)
 library(xlsx)
 library(janitor)
 
 expt <- TRUE
-nxls <- "zdrepano3.xlsx"
+nxls <- "drepano3.xlsx"
 #
 theme_gtsummary_language(language = "fr", decimal.mark = ",")
 options(OutDec = ",")
@@ -108,6 +109,14 @@ var_label(efr$dlcob) <- "DLCOc basse isolée"
 
 tt <- left_join(ttd,efr[,c(1,2,4,6,7,9,10,16:27)],"id") |> 
   mutate_if(is.character,as.factor)
+#
+bnomg <- read_delim("datas/bgroupe.csv")
+bnomg <- bnomg$nom
+ttg <- read_delim("datas/groupe.csv") |> 
+  clean_names() |> 
+  mutate_all(as.factor)
+var_label(ttg) <- bnomg
+tt <- left_join(tt,ttg,"id")
 ```
 
 L'échantillon comporte `r nrow(tt)` cas pour `r ncol(tt)-2` variables. Le fichier comporte beaucoup de données manquantes en particulier sur les résultats radiologiques.
@@ -418,7 +427,9 @@ tdmdrep <- function(nn) {
 kbl(row.names = FALSE,booktabs = TRUE,
              longtable = FALSE) |> 
     kable_styling(latex_options = c("repeat_header", "HOLD_position")) |>     footnote((general = "Median [quartiles]"))
-write.xlsx(tabt, file = nxls, sheetName = "lesions_vems", append = TRUE)
+  if(expt) {
+    write.xlsx(tabt, file = nxls, sheetName = "lesions_vems", append = TRUE)
+  }
 ```
 
 On regarde la présence ou l'absence de lésions pulmonaires selon le VEMS corrigé. Les seules franchement significatives sont la diminution de volume des lobes inférieurs & l'augmentation des vaisseaux pulmonaires. Les bronchectasies sont à la limite de la significabilité. 
@@ -476,7 +487,162 @@ lesion <- c("kyste","emphyseme","rdm", "cond","vd", "ret.","bronch", "band","dim
     pexptabph(exp = expt, nomfich = nxls, nomsheet = "rxloc")
 ```
 
+## Dyspnée
 
+ 
+Tout dépend de la référence prise (in fine les deux calculs sont non contributifs).
+
+### Patients dyspnéiques
+La dyspnée est définie par un mMRC > 1 ou Borg post test > 3 (@tbl-ouid). 
+
+```{r}
+#| label: dyspnee1
+
+tt <- tt |> 
+  mutate(dysp = ifelse((m_mrc > 1 | borg_post > 3), "Dyspnée modérée à sévère", "Dyspnée faible ou absente")) |> 
+  mutate(dysp = as.factor(dysp))
+```
+
+```{r}
+#| label: tbl-ouid
+#| tbl-cap: Patients dyspnéique
+ 
+mrc <- tt$m_mrc > 1
+bor <- tt$borg_post > 3
+nax <- which(is.na(mrc)&is.na(bor))
+mrc <- mrc[-nax]
+bor <- bor[-nax]
+dys <- mrc | bor
+xx <- which(bor & is.na(mrc))
+dys[xx] <- TRUE
+yy <- which(mrc & is.na(bor))
+dys[yy] <- TRUE
+dyspnée <- factor(dys, labels = c("Non Dyspnéique", "Dyspnéique"))
+kbl(table(dyspnée), booktabs = T) |>  
+  kable_styling(latex_options = c("HOLD_position"))
+    if(expt) {
+    write.xlsx(table(dyspnée), file = nxls, sheetName = "dyspnee1", append = TRUE)
+  }
+  
+```
+
+Vu le grand nombre de données manquantes ce résultat est peu fiable & surestime probablement le nombre de patients dyspnéiques. Le tableau suivant ne reprend que les patients pour qui les deux tests sont notés :
+
+```{r}
+#| label: dyspvrai
+#| tbl-cap: Dyspnées - données fiables
+
+dd <- tibble(bor, mrc) |> 
+  drop_na()
+dys <- dd$mrc | dd$bor
+dyspnée <- factor(dys, labels = c("Non Dyspnéique", "Dyspnéique"))
+kbl(table(dyspnée), booktabs = T) |> 
+  kable_styling(latex_options = c("HOLD_position"))
+  
+  if(expt) {
+    write.xlsx(table(dyspnée), file = nxls, sheetName = "dyspnee2", append = TRUE)
+}
+```
+
+
+## Nb de STA
+
+```{r}
+#| label: tbl-statab
+#| tbl-cap: STA & lésions pulmonaires
+
+tt <- tt |> 
+  mutate(stanum =
+  fct_recode(sta,
+    "5" = "4-5",
+    "7" = "6-10",
+    "11" = ">10")
+  ) |> 
+    mutate(stanum = as.numeric(as.character(stanum))) 
+
+tbl_continuous(tt,
+  variable = stanum,
+  include = c(augmvxpuml,dimlobe, lesion,atteinte)
+) |> 
+  modify_header(label ~ " ") |> 
+  bold_labels() |> 
+  add_p() |> 
+  pexptabph(exp = expt, nomfich = nxls, nomsheet = "nbsta")
+```
+
+:::{.callout .callout-warning}
+
+Pour tous les schémas suivants ne pas oublier que le nombre de cas est ridicule. 
+
+:::
+
+```{r}
+#| label: macrohist
+
+histm <- function(dfx, varx, varn, tit = ""){
+dfx |> 
+  drop_na({{varn}}) |> 
+  drop_na({{varx}}) |> 
+  ggplot() +
+  aes(x = {{varn}}, fill = {{varx}}, color = {{varx}}) +
+  geom_bar(stat = "count") +
+  facet_grid(vars({{varx}})) +
+  labs(title = tit,
+       x = "Nombre de STA",
+       y = "n",
+       caption = tit) +
+  scale_y_continuous(limits = c(0, 10), breaks = seq(0,10,2)) +
+  theme_light() +
+  scale_fill_discrete_qualitative(palette = "Dynamic") +
+  theme(
+    strip.text.y = element_text(size=12),
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 14),
+    axis.title.x = element_text(size = 12),
+    legend.title = element_blank(),
+    axis.title.y = element_text(
+      size = 12,
+      angle = 0,
+      vjust = .5
+    ),
+    axis.text.x = element_text(
+      size = 12
+    ),
+    axis.text.y = element_text(size = 12),
+    legend.position = "none"
+  )
+}
+```
+
+
+```{r}
+#| label: gglesion
+#| fig-cap: STA & lésion radiologique prédominante
+
+histm(tt, varn = sta, varx = lesion, tit = "STA & lésion radiologique prédominante")
+```
+
+```{r}
+#| label: ggaug
+#| fig-cap: STA & augmentation des vaisseaux pulmonaires	
+
+histm(tt, varn = sta, varx = augmvxpuml, tit = "STA & augmentation des vaisseaux pulmonaires")
+```
+
+
+```{r}
+#| label: ggdim
+#| fig-cap: STA & diminution de volume des lobes inférieurs
+
+histm(tt, varn = sta, varx = dimlobe, tit = "STA & diminution de volume des lobes inférieurs")
+```
+
+```{r}
+#| label: ggatt
+#| fig-cap: STA & atteinte parenchymateuse
+
+histm(tt, varn = sta, varx = atteinte, tit = "STA & atteinte parenchymateuse")
+```
 
 
 ## Technique {.appendix}

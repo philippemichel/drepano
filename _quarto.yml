@@ -1,11 +1,55 @@
-project:
-  title: "Atteinte pulmonaire chronique & drépanocytaire"
-date: today
-date-format: "DD/MM/YYYY"
+title: "Atteinte pulmonaire chronique & drépanocytaire"
+
+lang: fr
+author:
+  - name: "Dr Philippe \\textsc{Michel}"
+    affiliations:
+      name: "Hôpital NOVO"
+      department: "Unité de Soutien à la Recherche Clinique"
+format:
+ titlepage-pdf:
+  titlepage: bg-image
+  titlepage-bg-image: "novo_usrc.png"
+  logo-space-after: "0\\baselineskip"
+  documentclass: scrreprt
+  number-sections: true
+  titlepage-footer: "Juliette \\textsc{Buteau}  \\newline Dr Bruno \\textsc{Philippe} \\newline Service de Pneumologie -- Hôpital NOVO (Site Pontoise)\\newline\\newline Chef de projet : Mme Véronique \\textsc{Da Costa}
+\\newline \\newline Étude monocentrique \\newline \\today"
+titlepage-theme:
+  title-fontstyle: ["Huge", "bfseries"]
+  title-color: novo
+  subtitle-color: novo
+  subtitle-fontstyle: ["huge"]
+  logo-size: "0.2\\textheight"
+  vrule-width: "0.1cm"
+  vrule-color: novo
+include-in-header:
+   text: |
+    \definecolor{novo}{HTML}{27484b}
+    \usepackage{siunitx}
+    \usepackage{arsenal}
+df-print : kable
+jss-pdf:
+  keep-tex: true
+pdf-engine: lualatex
+keep-tex: true
+number-sections: true
+toc: true
+lof: true
+lot: true
 fig-cap-location: bottom
 tbl-cap-location: top
+classoption: [french]
+papersize: a4
 editor: source
+bibliography: stat.bib
 cite-method: biblatex
-license: "CC BY-SA"
-
+#csl: jama.csl
+#reference-location: margin
+#citation-location: margin
+license: "MIT"
+echo: false
+warning: false
+message: false
+cache: false
 
