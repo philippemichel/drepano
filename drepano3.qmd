@@ -54,8 +54,14 @@ library(DataExplorer)
 library(xlsx)
 library(janitor)
 
-expt <- TRUE
+expt <- FALSE
 nxls <- "drepano3.xlsx"
+if (expt) {
+system(paste0("rm -f", nxls))
+}
+```
+
+```{r}
 #
 theme_gtsummary_language(language = "fr", decimal.mark = ",")
 options(OutDec = ",")

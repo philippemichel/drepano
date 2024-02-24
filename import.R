@@ -5,12 +5,11 @@ importph <- function(){
     library(baseph)
 bnom <- read_delim("datas/bnom.csv", delim = ";", show_col_types = FALSE)
 ttd <- read_delim("datas/drepa2.csv", delim = ";", show_col_types = FALSE) |> 
-  clean_names() |> 
-  mutate_if(is.character, as.factor)
+  clean_names() 
 var_label(ttd) <- bnom$nom
 #
-ttd$imcx <- bmiph(ttd$imc, "fr")
-var_label(ttd$imcx) <- "IMC"
+ttd$imcx <- bmiph(ttd$imc, "eng")
+var_label(ttd$imcx) <- "BMI"
 ttd <- ttd |> 
   relocate(imcx, .after = imc)
 ## Recodage de tt$cvo_an en tt$cvo_an_rec
@@ -48,6 +47,7 @@ tt <- left_join(ttd,efr[,c(1,2,4,6,7,9,10,16:27)],"id")
 #
 type <- read_delim("datas/type.csv", delim = ";", show_col_types = FALSE)
 tt <- left_join(tt,type,"id") |> 
+  mutate_if(is.character, as.factor) |> 
   mutate(type = type2) |> 
   select(-type2) 
 # bnom <- read.csv("datas/bgroupe.csv")

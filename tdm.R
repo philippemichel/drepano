@@ -17,3 +17,9 @@ tdmdrep <- function(nn){
   zz<- na.omit(zz)
   chisq.test(zz$tot,zz$groupe)
 }
+
+zz <- tt |>
+  select(!contains("nodules")) 
+
+
+efr$tvo <- as.factor(ifelse(efr$vemscvf < (efr$vemscvflin*100), "Oui","Non"))

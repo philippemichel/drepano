@@ -1,0 +1,143 @@
+---
+subtitle: "Compléments 4.0"
+cache: false
+---
+
+
+```{r}
+#| label: info
+
+rm(list = ls())
+classeur <- "complement4.xlsx"
+expx <- TRUE
+tt <- readRDS("drepano.RDS")
+if (expx){system(paste0("rm -f ",classeur))}
+
+library(corrplot)
+library(baseph)
+library(tidyverse)
+library(kableExtra)
+library(gtsummary)
+library(DataExplorer)
+library(WriteXLS)
+library(colorspace)
+library(forestmodel)
+
+# sessionInfo()
+theme_gtsummary_language(language = "fr", decimal.mark = ",")
+theme_gtsummary_journal(journal = "jama")
+options(OutDec = ",")
+```
+
+
+# EFR
+
+Il est impossible de calculer les p-values : trop de variables, multiplication des tests. Ou alors il faudrait appliquer une correction de Bonferroni ou autre, le résultat serait ns pour tout le monde.
+
+```{r}
+#| label: tbl-efr1
+#| tbl-cap: EFR
+
+
+tt |> 
+  dplyr::select(c(2,109:126)) |> 
+  tbl_summary(by = groupe, missing = "no") |>
+    add_overall(col_label= "**Total**, N = {N}") %>%
+  bold_labels() |>
+  gexptabph(exp = expx, nomfich = classeur, nomsheet = "efr1")
+```
+
+# Lésions & EFR
+
+
+Il est impossible de calculer les p-values : trop de variables, multiplication des tests. Ou alors il faudrait appliquer une correction de Bonferroni ou autre, le résultat serait ns pour tout le monde. 
+
+```{r}
+#| label: tbl-radsta
+#| tbl-cap: "nb de STA selon les anomalies radiologiques"
+
+  rad <- c("kyste","emphyseme","rdm", "cond","vd", "ret_","bronch", "band","diminution_volume"  ,    "augmentation_vx_pulm" )
+  brad <- c("kyste","Emphysème", "Rayon de miel", "Condensation","Verre dépoli", "Réticulation", "Bronchectasie", "Bandes d'atélectasie", "diminution de volume des lobes inférieurs" ,"augmentation des vaisseaux pulmonaires" )
+  tabx <- NULL
+  for(i in rad){
+    zz <- tt |> 
+      select(starts_with(i)) |>
+      mutate_all(function(x) if_else(x == "yes", 1, 0))
+    aa <- ifelse(rowSums(zz) > 0, "yes", "no")
+    tabx <- cbind(tabx, aa)
+  }
+#
+  tabx <- as_tibble(tabx) |> 
+    mutate_all(as.factor)
+  names(tabx) <- brad
+  tabx$fact <- tt$sta
+  tabz <- tabx |> 
+    pivot_longer(cols = 1:10)
+  
+  
+names(tabz) <- c("STA","Lésion","Value")
+## Recodage de tabz$Value en tabz$Value_rec
+tabz$Value <- tabz$Value %>%
+  fct_recode(
+    "Non" = "no",
+    "Oui" = "yes"
+  )
+tabz |> 
+  drop_na(Value) |>
+  tbl_continuous(
+    variable = STA,
+    by = Value,
+    include = Lésion
+  ) |> 
+      add_overall(col_label= "**Total**, N = {N}") %>%
+  bold_labels() |>
+  modify_header(label ~ " ") |> 
+    modify_spanning_header(c("stat_1", "stat_2") ~ "**Lésion présente**") %>%
+  pexptabph(exp = expx, nomfich = classeur, nomsheet = "lesion_sta")
+```
+    
+# VEMS corrigé & Anomalies radiologiques
+
+```{r}
+#| label: tbl-lesion_efr
+#| tbl-cap: "VEMS corrigé (GLI 2012) et Anomalies radiologiques"
+
+tabx$fact <- tt$vem_scor_percent
+tabz <- tabx |> 
+  pivot_longer(cols = 1:10) 
+names(tabz) <- c("VEMS","Lésion","Value")
+tabz$Value <- tabz$Value %>%
+  fct_recode(
+    "Non" = "no",
+    "Oui" = "yes"
+  )
+tabz |> 
+ # drop_na(Value) |>
+  tbl_continuous(
+    variable = VEMS,
+    by = Value,
+    include = Lésion
+  ) |> 
+      add_overall(col_label= "**Total**, N = {N}") %>%
+  bold_labels() |>
+  modify_header(label ~ " ") |> 
+    modify_spanning_header(c("stat_1", "stat_2") ~ "**Lésion présente**") %>%
+  pexptabph(exp = expx, nomfich = classeur, nomsheet = "efr_lesion")
+```
+
+# Hb & génotype
+
+```{r}
+#| label: tbl-hbtype
+#| tbl-cap: "Hémoglobine et génotype"
+
+tt |> 
+  tbl_continuous(variable = hb_base,  include = type) |> 
+  add_p() |> 
+  bold_labels() |>
+  modify_header(label ~ " ") |> 
+ add_p() |>
+  gexptabph(exp = expx, nomfich = classeur, nomsheet = "hb-type")
+
+```
+

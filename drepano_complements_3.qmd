@@ -10,7 +10,7 @@ cache: false
 
 rm(list = ls())
 classeur <- "complement3.xlsx"
-expx <- FALSE&
+expx <- FALSE
 tt <- readRDS("drepano.RDS")
 
 library(corrplot)
@@ -21,6 +21,7 @@ library(gtsummary)
 library(DataExplorer)
 library(WriteXLS)
 library(colorspace)
+library(forestmodel)
 
 # sessionInfo()
 theme_gtsummary_language(language = "fr", decimal.mark = ",")
@@ -183,5 +184,23 @@ glm(groupe ~ ., data = tt |> select(age, sexe,imcx,typex, hb_base,  groupe), fam
   modify_header(label ~ " ") |> 
   bold_labels() |>
   pexptabph(exp = expx, nomfich = classeur, nomsheet = "risq2")
+```
+
+
+```{r}
+#| label: fig-risq
+#| fig-cap: "Facteurs de risque - régression"
+zz <- tt |> 
+  transmute(Gender = sexe, 
+            Age = age,
+            BMI = imcx, 
+            Genotype = typex,
+            'Basic hemoglobin' = hb_base, 
+            groupe
+            )
+glm(groupe ~ ., data = zz, family = binomial) |> 
+  
+forest_model(factor_separate_line = TRUE)
+
 ```
 
